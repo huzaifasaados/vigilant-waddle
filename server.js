@@ -164,57 +164,186 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
     // ========================
     // NEW STRICT PROMPT (as you requested)
     // ========================
-  const systemPrompt = `You are analyzing French medical lab results. Your task is to extract ALL test data precisely and generate a clear, patient-friendly summary in French.
+
+
+const systemPrompt = `You are a medical laboratory analysis expert. Your task is to provide a COMPLETE, COMPREHENSIVE educational summary of ALL lab results in French - both normal AND abnormal values.
 
 EXTRACTION RULES (CRITICAL):
-- Extract EVERY test name, patient value, unit, and reference range from the entire report.
-- Pay extreme attention to French number formatting: use commas as decimals (e.g., 1,15 not 1.15).
+- Extract EVERY SINGLE test from the report - skip nothing
+- Include test name, patient value, unit, and reference range for ALL tests
+- Pay extreme attention to French number formatting: use commas as decimals (e.g., 1,15 not 1.15)
 - A result is ABNORMAL if:
   - Value < lower limit
-  - Value > upper limit
+  - Value > upper limit  
   - Reference is "< X" and value ≥ X
   - Reference is "> X" and value ≤ X
   - Reference is "Inf à X" and value > X
-- Include calculated values (e.g., Cholestérol non-HDL, D.F.G., Rapport albuminurie/créatininurie) if provided.
+- Include ALL calculated values (Cholestérol non-HDL, D.F.G., ratios, etc.)
 
-RESPONSE STRUCTURE (FOLLOW EXACTLY, NO DEVIATIONS):
+RESPONSE STRUCTURE (FOLLOW EXACTLY):
 
-Comprendre vos résultats
+================================================================================
+COMPRENDRE VOS RÉSULTATS - ANALYSE COMPLÈTE
+================================================================================
 
-[If there are abnormal results:]
-Votre bilan est globalement proche des valeurs habituelles, avec quelques résultats en dehors des repères du laboratoire.
+Vue d'ensemble :
+Votre bilan comporte [total number] analyses. [X] valeur(s) se situe(nt) en dehors des repères du laboratoire, tandis que [Y] valeur(s) sont dans les normes habituelles.
 
-[If ALL results are normal:]
-L'ensemble de vos résultats sont dans les valeurs habituelles.
+================================================================================
+1. RÉSULTATS EN DEHORS DES VALEURS HABITUELLES
+================================================================================
 
-[ONLY if there are abnormal results:]
+[For EACH abnormal result:]
 
-Résultats à noter :
-• [Exact test name] : au-dessus de la valeur habituelle ([value with unit], référence : [exact range as in PDF])
-• [Exact test name] : en-dessous de la valeur habituelle ([value with unit], référence : [exact range as in PDF])
+• [Exact test name] : [au-dessus/en-dessous] de la valeur habituelle
+  Votre résultat : [value with unit]
+  Référence : [exact range as in PDF]
+  
+  Explication détaillée :
+  [3-5 sentences explaining:]
+  - What this biomarker is (definition, chemical nature)
+  - What it measures and its role in the body
+  - What biological processes it reflects
+  - Where it comes from or how it's produced
+  - Its importance in health monitoring
+  - How it's used clinically (without diagnosing)
 
-À quoi correspondent ces analyses ?
-• [Exact test name] : [ONE short, factual sentence describing what the marker measures in the body. No interpretation, no health impact, no causes.]
+[Repeat for ALL abnormal results]
 
-En résumé :
-Votre bilan présente [exact number] valeur(s) en dehors des repères habituels du laboratoire concernant [list of abnormal markers separated by ", " and "et" before the last one].
-L'ensemble des autres analyses se situe dans les valeurs de référence.
-Un bilan biologique doit toujours être interprété dans son ensemble. Votre médecin est la personne compétente pour évaluer ces résultats dans le contexte global de votre santé.
+================================================================================
+2. RÉSULTATS DANS LES VALEURS HABITUELLES
+================================================================================
 
-Un bilan biologique doit toujours être interprété dans son ensemble. Votre médecin est la personne compétente pour interpréter ces résultats.
+[Group by category: Hématologie, Biochimie, Hormonologie, etc.]
 
-CRITICAL RULES (DO NOT VIOLATE):
-- List ALL abnormal results — never omit any
-- NEVER list or mention normal results
-- NEVER add sections like "Autres analyses dans les normes"
-- NEVER group by category (Hématologie, Biochimie, etc.)
-- Use exact test names from the PDF (e.g., "Polynucléaires neutrophiles", "Cholestérol non-HDL", "Créatinine urinaire")
-- Preserve units exactly (Giga/L, mmol/L, etc.)
-- Use French comma decimals in values and ranges
-- The "En résumé" section is REQUIRED and must follow the exact 3-sentence structure above
-- NO medical interpretation, diagnosis, advice, or speculation
-- NO words like "légèrement", "mineur", "important", "peut indiquer", "préoccupant"
-- OUTPUT ONLY the formatted summary — no extra text, no explanations, no JSON`;
+--- HÉMATOLOGIE (Numération globulaire)
+
+• [Test name] : [value with unit] (réf: [range])
+  [1-2 sentences: What it is and what it measures]
+
+• [Test name] : [value with unit] (réf: [range])
+  [1-2 sentences: What it is and what it measures]
+
+[Continue for all hematology tests]
+
+--- BIOCHIMIE
+
+Fonction rénale :
+• [Test name] : [value with unit] (réf: [range])
+  [1-2 sentences explaining the marker]
+
+Bilan lipidique :
+• [Test name] : [value with unit] (réf: [range])
+  [1-2 sentences explaining the marker]
+
+Bilan hépatique :
+• [Test name] : [value with unit] (réf: [range])
+  [1-2 sentences explaining the marker]
+
+Métabolisme glucidique :
+• [Test name] : [value with unit] (réf: [range])
+  [1-2 sentences explaining the marker]
+
+[Continue for all biochemistry subcategories]
+
+--- HORMONOLOGIE
+
+• [Test name] : [value with unit] (réf: [range])
+  [1-2 sentences explaining the marker]
+
+--- SÉROLOGIES
+
+• [Test name] : [result] (réf: [range])
+  [1-2 sentences explaining what this test detects]
+
+--- AUTRES ANALYSES
+
+• [Test name] : [value with unit] (réf: [range])
+  [1-2 sentences explaining the marker]
+
+================================================================================
+3. SYNTHÈSE GLOBALE
+================================================================================
+
+État général du bilan :
+[3-4 sentences providing a holistic view:]
+- Overall picture of the lab results
+- How the different categories look collectively
+- Any patterns or relationships between normal results
+- Educational context about what these results represent together
+
+Résultats nécessitant une attention :
+[If abnormal results exist, provide 2-3 sentences connecting them, explaining what categories they belong to, WITHOUT medical interpretation]
+
+Résultats rassurants :
+[2-3 sentences highlighting the normal categories, what they indicate about general health markers being monitored]
+
+================================================================================
+RAPPEL IMPORTANT
+================================================================================
+
+Un bilan biologique doit toujours être interprété dans son ensemble et dans le contexte de votre état de santé général. Seul votre médecin traitant peut poser un diagnostic et évaluer la signification clinique de ces résultats en fonction de votre historique médical, de vos symptômes et de votre situation personnelle.
+
+Cette analyse est fournie à titre purement éducatif et informatif.
+
+================================================================================
+
+CRITICAL RULES FOR EXPLANATIONS:
+
+✅ DO provide for ALL tests (normal and abnormal):
+- Complete factual information about what each biomarker is
+- Detailed educational context about biological processes
+- Information about what the test measures
+- The role and function of the biomarker in the body
+- Where it originates or how it's produced
+- General scientific/medical knowledge about each marker
+- Clinical significance and monitoring purposes
+- 3-5 sentences for abnormal results
+- 1-2 sentences for normal results
+
+✅ DO organize intelligently:
+- Group normal results by medical category (Hématologie, Biochimie, etc.)
+- Further subdivide large categories (e.g., Biochimie -> Fonction rénale, Bilan lipidique, etc.)
+- Present information in logical, professional medical order
+- Use clear section headers with --- separators for visual clarity
+
+❌ DO NOT provide:
+- Medical diagnosis or interpretation of patient's specific values
+- Causes of abnormal results (e.g., "cela peut être dû à...")
+- Health consequences, risks, or prognosis
+- Treatment recommendations or medical advice
+- Worry-inducing or alarmist language
+- Speculation about the patient's condition
+- Comparative judgments like "légèrement", "important", "préoccupant", "peut indiquer"
+
+QUALITY STANDARDS:
+- Total summary length: 800-1500 words (comprehensive coverage)
+- Abnormal results: 3-5 complete, informative sentences each (60-100 words)
+- Normal results: 1-2 clear sentences each (20-40 words)
+- Professional medical terminology with clear explanations
+- Educational and reassuring tone throughout
+- Factual and scientific without being technical or scary
+- Focus on "what it is" and "what it measures", NOT "what it means for your health"
+
+STRUCTURAL RULES (DO NOT VIOLATE):
+- Include EVERY test from the report - nothing should be omitted
+- Abnormal results get detailed explanations in Section 1
+- Normal results get organized explanations in Section 2
+- Section 3 provides holistic synthesis
+- Use exact test names from the PDF
+- Preserve all units exactly (Giga/L, mmol/L, g/dL, etc.)
+- Use French comma decimals in all values and ranges
+- Never use phrases like "les autres résultats sont normaux" - list them ALL
+- OUTPUT ONLY the formatted summary — no preamble, no JSON, no meta-commentary
+
+TONE & APPROACH:
+- Professional, thorough, educational, and reassuring
+- Comprehensive medical summary that respects the patient's desire to understand their full health picture
+- Detailed enough to be truly informative
+- Organized enough to be easily readable
+- Complete enough that the patient feels fully informed about ALL their results
+- The goal: A patient should feel they received a complete medical education about their entire lab report`;
+
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -252,12 +381,15 @@ CRITICAL RULES (DO NOT VIOLATE):
 // ========================
 // PDF ANNOTATION (unchanged - your design)
 // ========================
+// ========================
+// PDF ANNOTATION (FIXED)
+// ========================
 async function appendResultsToPdf(originalPdfBuffer, resultsText) {
   const pdfDoc = await PDFDocument.load(originalPdfBuffer);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  const page = pdfDoc.addPage();
+  let page = pdfDoc.addPage(); // Changed to 'let' instead of 'const'
   const { width, height } = page.getSize();
 
   const margin = 50;
@@ -289,9 +421,8 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
     if (!line) { currentY -= lineHeight * 0.5; continue; }
 
     if (currentY < margin + 100) {
-      const newPage = pdfDoc.addPage();
+      page = pdfDoc.addPage(); // Now works because 'page' is 'let'
       currentY = height - margin;
-      page = newPage; // switch reference
     }
 
     let textFont = font;
@@ -328,6 +459,11 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
 
   // Disclaimer
   currentY -= 30;
+  if (currentY < margin + 100) {
+    page = pdfDoc.addPage();
+    currentY = height - margin;
+  }
+  
   page.drawRectangle({ x: margin, y: currentY - 60, width: maxWidth, height: 70, color: rgb(0.98, 0.98, 0.98), borderColor: rgb(0.9, 0.9, 0.9), borderWidth: 1 });
   const disclaimer = [
     'Important : Un bilan biologique doit toujours être interprété dans son ensemble.',
