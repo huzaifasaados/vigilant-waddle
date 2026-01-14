@@ -294,12 +294,7 @@ Métabolisme glucidique (sucre dans le sang) :
 3. RÉCAPITULATIF
 ================================================================================
 
-Nombre total d'analyses : [X]
-Valeurs en dehors des repères : [Y]
-Valeurs dans les repères : [Z]
-
-Catégories d'analyses présentes dans ce bilan :
-- [Liste simple des catégories trouvées]
+Votre bilan comprend au total [X] analyses réparties dans [nombre] catégories différentes. Parmi ces analyses, [Y] valeurs se situent en dehors des repères habituels du laboratoire, tandis que [Z] valeurs se situent dans les repères habituels. Les catégories analysées incluent [liste des catégories en texte fluide, séparées par des virgules]. Ce bilan permet d'examiner plusieurs aspects de votre biologie, notamment [mentionner 2-3 domaines principaux comme l'hématologie, la fonction rénale, le métabolisme, etc.]
 
 ================================================================================
 RAPPEL IMPORTANT
@@ -578,8 +573,8 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
     // ========================
     // TEST RESULTS
     // ========================
-    else if (line.startsWith('•') || line.startsWith('*')) {
-      line = line.replace(/^[•*]\s*/, '');
+    else if (line.startsWith('•') || line.startsWith('*') || line.startsWith('-')) {
+      line = line.replace(/^[•*-]\s*/, '');
       leftPad = 25;
       
       if (inAbnormal) {
@@ -601,6 +596,9 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
           textFont = boldFont;
           textSize = 10;
         }
+      } else if (inRecap) {
+        textColor = C.charcoal;
+        iconType = 'bullet';
       } else {
         iconType = 'bullet';
       }
