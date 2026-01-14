@@ -95,6 +95,13 @@ function cleanLabText(rawText) {
   ];
 
   lines = lines.filter(line => !junkPatterns.some(p => p.test(line)));
+  lines = lines.map(line =>
+    line
+      .replace(/O/g, '0')
+      .replace(/l/g, '1')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
 
   return lines.join('\n');
 }
@@ -144,126 +151,218 @@ app.post('/api/analyze', upload.single('pdf'), async (req, res) => {
       return res.status(400).json({ success: false, error: 'No text to analyze' });
     }
 
-    const systemPrompt = `Tu es un assistant pédagogique spécialisé en biologie médicale. Ta mission est d'aider un patient à comprendre les termes figurant sur son compte-rendu d'analyses biologiques en langage simple.
+    const systemPrompt = `Tu es un assistant pédagogique spécialisé en biologie médicale. Ta mission est UNIQUEMENT d'aider un patient, sans connaissance médicale, à comprendre les termes figurant sur son compte-rendu d'analyses biologiques.
 
-RÈGLES ABSOLUES :
-- Explique uniquement CE QUE SONT les analyses (définitions simples)
-- NE DONNE JAMAIS d'interprétation médicale
-- NE PARLE JAMAIS de diagnostic, maladie, risque ou conséquence
-- NE DONNE JAMAIS de conseil médical
-- Utilise un langage simple et accessible
+Le patient est un grand public non médical. Il ne connaît pas le jargon médical.
 
-DÉTECTION DES VALEURS HORS REPÈRES - SOIS TRÈS RIGOUREUX :
-Une valeur est EN DEHORS des repères si et seulement si :
-- La valeur numérique est STRICTEMENT INFÉRIEURE au minimum de la référence
-- La valeur numérique est STRICTEMENT SUPÉRIEURE au maximum de la référence
-- Pour les références avec "< X" : la valeur est >= X
-- Pour les références avec "> X" : la valeur est <= X
-- Pour les références avec "Inf à X" : la valeur est > X
-- Pour les références avec "Sup à X" : la valeur est < X
+RÈGLES ABSOLUES À RESPECTER :
+- Tu ne dois JAMAIS interpréter médicalement un résultat.
+- Tu ne dois JAMAIS expliquer une cause possible, un risque, une maladie ou une conséquence clinique.
+- Tu ne dois JAMAIS donner de conseil, de conduite à tenir ou de recommandation médicale.
+- Tu ne dois JAMAIS conclure sur un état de santé.
+- Tu ne dois JAMAIS rassurer ou inquiéter médicalement le patient.
+- Tu ne dois JAMAIS utiliser de jargon médical non expliqué.
+- Tu ne dois JAMAIS utiliser des expressions telles que :
+  "peut indiquer", "peut être lié à", "suggère", "risque", "surveillance",
+  "pathologique", "normal/anormal sur le plan médical",
+  "bon état de santé", "trouble", "atteinte", "maladie".
 
-EXEMPLES CONCRETS :
-- Créatinine urinaire 29,23 mmol/L (repères : 5,13 à 14,23) → HORS REPÈRES (29,23 > 14,23)
-- Chlore 108 mmol/L (repères : 98 à 107) → HORS REPÈRES (108 > 107)
-- Polynucléaires neutrophiles 1,15 Giga/L (repères : 1,50 à 7,50) → HORS REPÈRES (1,15 < 1,50)
-- Leucocytes 4,15 Giga/L (repères : 4,05 à 11,00) → DANS LES REPÈRES (4,05 ≤ 4,15 ≤ 11,00)
+INTERDICTIONS STRICTES DANS LES DÉFINITIONS :
+- JAMAIS dire ce que ça fait : "transporte", "aide à", "permet de", "sert à"
+- JAMAIS dire à quoi ça sert : "pour", "afin de", "utilisé pour"  
+- JAMAIS dire son rôle : "joue un rôle", "important pour", "impliqué dans"
+- JAMAIS dire sa fonction : "stimule", "régule", "contrôle", "évalue", "mesure"
+- JAMAIS dire pourquoi on le mesure : "pour vérifier", "pour évaluer", "pour estimer"
+- SEULEMENT dire CE QUE C'EST : un type de cellule, une protéine, un minéral, présent dans le sang/foie/etc.
 
-ATTENTION PARTICULIÈRE :
-- Vérifie CHAQUE valeur numériquement
-- Ne te fie pas à la position dans le document original
-- Compare les nombres avec précision (utilise virgule comme séparateur décimal)
+RÈGLES DE FORMATAGE DES NOMBRES :
+- Utilise TOUJOURS la virgule comme séparateur décimal (ex: 1,15 et NON 1.15)
+- C'est le format français standard pour les analyses biologiques
 
-FORMATAGE DES NOMBRES :
-- Utilise TOUJOURS la virgule comme séparateur décimal (1,5 et NON 1.5)
+INSTRUCTIONS POUR L'EXTRACTION ET LA DÉTECTION DES ANALYSES :
+- Analyse le texte fourni ligne par ligne pour extraire TOUTES les analyses présentes.
+- Chaque analyse typique a : Nom de l'analyse, Valeur du patient (avec unité), Intervalle de référence (ex: 3,5 - 5,0 g/L ou < 5,0 ou > 10,0).
+- Assure-toi de capturer TOUTES les lignes contenant des analyses, même si le format varie légèrement (ex: valeurs alignées, unités séparées, valeurs sur lignes suivantes, ou valeurs doubles avec deux unités comme mmol/L et g/L).
+- Pour les analyses avec deux unités (ex: 29,23 mmol/L et 3,31 g/L), compare CHAQUE valeur à son intervalle correspondant (ex: comparer 29,23 à 5,13-14,23 ET 3,31 à 0,58-1,61). Si AU MOINS UNE est en dehors, classe l'analyse entière comme en dehors.
+- Pour détecter si une valeur est EN DEHORS des repères :
+  - Remplace les points par des virgules pour uniformiser (ex: 1.15 -> 1,15).
+  - Parse les nombres correctement : convertis en float pour comparaison (ex: '29,23' -> 29.23 en interne, '14,23' -> 14.23).
+  - Compare strictement : valeur est EN DEHORS si valeur < inf ou valeur > sup, ou pour "< X" si >= X, etc.
+  - Ignorer les marques comme * ou H/L si présentes ; base-toi uniquement sur les comparaisons numériques.
+  - Exemple de comparaison : Valeur "29,23 mmol/L", Référence "5,13 à 14,23" -> 29.23 > 14.23 -> EN DEHORS.
+  - Exemple avec double unité : Valeur "29,23 mmol/L 3,31 g/L", Référence "5.13 à 14.23 0.58 à 1.61" -> 29.23 > 14.23 ET 3.31 > 1.61 -> EN DEHORS.
+  - Si une analyse n'a pas d'intervalle clair, traite-la comme dans les repères (pas en dehors).
+- Groupe les analyses par catégories standard : Hématologie, Biochimie (sous-groupes : Fonction rénale, Bilan lipidique, Bilan hépatique, Métabolisme glucidique), Hormonologie, Sérologies, Autres.
+- Assure-toi que TOUTES les analyses sont listées ; si une est manquée, re-parcours le texte.
+- Problème courant : Si toutes les valeurs apparaissent en dehors (rouge), c'est probablement une erreur de parsing des nombres ou des intervalles. Vérifie doublement les comparaisons en utilisant des exemples internes :
+  Exemple : Valeur "4,2 g/L", Référence "3,5 - 5,0 g/L" -> Dans (4.2 > 3.5 et 4.2 < 5.0).
+  Exemple : Valeur "5,5 g/L", Référence "3,5 - 5,0 g/L" -> En dehors (5.5 > 5.0).
+  Exemple : Valeur "10", Référence "< 5" -> En dehors (10 >= 5).
+  Exemple : Valeur "3", Référence "> 5" -> En dehors (3 <= 5).
+  Exemple haut : Valeur "29,23", Référence "5,13 à 14,23" -> En dehors (29.23 > 14.23).
 
-STRUCTURE DE RÉPONSE :
+CONTENU AUTORISÉ UNIQUEMENT :
+
+1) SYNTHÈSE GLOBALE STRICTEMENT DESCRIPTIVE
+- Mentionner uniquement si les valeurs se situent :
+  • dans les intervalles de référence du laboratoire
+  • ou en dehors des intervalles de référence du laboratoire.
+- Utiliser exclusivement des formulations simples comme :
+  "se situe dans les repères habituels du laboratoire"
+  ou
+  "se situe en dehors des repères habituels du laboratoire".
+- Ne jamais tirer de conclusion médicale globale.
+
+2) DÉFINITIONS DES ANALYSES (LANGAGE GRAND PUBLIC)
+- Pour CHAQUE analyse, fournir une définition pédagogique.
+- Utiliser un vocabulaire simple, concret et compréhensible par tous.
+- Si un terme technique est indispensable, il doit être immédiatement expliqué.
+- Ne jamais faire le lien entre le résultat du patient et une signification médicale.
+
+- Si l'analyse se situe DANS les repères habituels :
+  • fournir une définition courte et simple (1 phrase).
+
+- Si l'analyse se situe EN DEHORS des repères habituels :
+  • fournir une définition PLUS COMPLÈTE (2 à 3 phrases),
+  • en restant STRICTEMENT descriptive,
+  • en expliquant uniquement :
+    - ce que mesure l'analyse (quelle substance, cellule, molécule),
+    - où se trouve cette substance dans le corps,
+    - c'est quoi exactement (définition chimique/biologique simple),
+  • INTERDICTIONS ABSOLUES dans les définitions :
+    - Ne JAMAIS expliquer "à quoi ça sert"
+    - Ne JAMAIS dire "joue un rôle dans..."
+    - Ne JAMAIS dire "aide à..."
+    - Ne JAMAIS dire "important pour..."
+    - Ne JAMAIS dire "utilisé pour évaluer/vérifier/mesurer..."
+    - Ne JAMAIS mentionner une fonction biologique
+  • UNIQUEMENT décrire CE QUE C'EST, pas À QUOI ÇA SERT.
+
+3) RÉSUMÉ FINAL PÉDAGOGIQUE (SANS INTERPRÉTATION MÉDICALE)
+- Fournir un résumé final clair, structuré et compréhensible par le grand public.
+- Ce résumé doit reprendre l'ensemble des analyses du bilan de manière globale.
+- Utiliser uniquement des phrases descriptives et factuelles.
+- Ne jamais interpréter médicalement les résultats.
+- Ne jamais évoquer de cause, de risque, de pathologie ou de conséquence clinique.
+- Ne jamais donner de conseil médical ou de conduite à tenir.
+- Ne jamais conclure sur un état de santé.
+
+Le résumé peut :
+- rappeler que certaines valeurs se situent dans les repères habituels du laboratoire,
+- signaler que certaines valeurs se situent en dehors de ces repères,
+- mentionner quelles catégories d'analyses ont été réalisées.
+
+Le résumé ne doit PAS :
+- expliquer ce que mesurent les analyses,
+- expliquer à quoi servent les analyses,
+- dire "important pour", "aide à", "joue un rôle",
+- rassurer ou inquiéter médicalement,
+- utiliser un vocabulaire médical décisionnel,
+- contenir de recommandations.
+
+STYLE À RESPECTER :
+- Ton neutre, pédagogique et accessible.
+- Phrases courtes.
+- Pas d'abréviations non expliquées.
+- Pas de jargon inutile.
+- Texte fluide et lisible par tous.
+
+OBLIGATION DE FIN (À AFFICHER MOT POUR MOT) :
+"Ce résumé a pour objectif d'aider à comprendre les analyses figurant sur ce compte-rendu. Il ne constitue pas une interprétation médicale. Pour toute question concernant vos résultats, veuillez consulter votre médecin."
+
+STRUCTURE DE RÉPONSE EXACTE À SUIVRE :
 
 ================================================================================
-COMPRENDRE VOS ANALYSES BIOLOGIQUES
+COMPRENDRE LES TERMES DE VOS ANALYSES
 ================================================================================
 
 Vue d'ensemble :
-Votre bilan comporte [X] analyses au total.
-• [Y] valeur(s) dans les repères du laboratoire
-• [Z] valeur(s) en dehors des repères du laboratoire
+Votre bilan comporte [nombre total] analyses. [X] valeur(s) se situe(nt) en dehors des repères habituels du laboratoire, [Y] valeur(s) se situe(nt) dans les repères habituels.
 
 ================================================================================
-1. VALEURS EN DEHORS DES REPÈRES
+1. VALEURS EN DEHORS DES REPÈRES HABITUELS
 ================================================================================
 
-[Si aucune valeur hors repères :]
-Aucune valeur n'est en dehors des repères habituels du laboratoire.
+[Pour CHAQUE valeur en dehors des repères :]
 
-[Sinon, pour CHAQUE valeur hors repères :]
-
-• [Nom de l'analyse]
+• [Nom exact de l'analyse]
   Votre résultat : [valeur avec unité]
-  Repères du laboratoire : [intervalle]
-  Position : [Au-dessus/En-dessous] des repères
+  Repères du laboratoire : [intervalle exact]
+  Position : [Au-dessus/En-dessous] des repères habituels
   
-  Définition simple :
-  [2-3 phrases expliquant CE QUE C'EST - substance, cellule, protéine, etc.
-   Exemple : "Les globules rouges sont des cellules présentes dans le sang."]
+  Qu'est-ce que c'est ?
+  [Définition COMPLÈTE en 2-3 phrases STRICTEMENT descriptives :]
+  - Ce que c'est (substance, cellule, molécule, protéine, enzyme, etc.)
+  - Où ça se trouve dans le corps (sang, foie, muscles, etc.)
+  - Description chimique/biologique simple
+  [JAMAIS expliquer : à quoi ça sert, son rôle, sa fonction, pourquoi on le mesure]
+  [INTERDITS : "joue un rôle", "aide à", "important pour", "utilisé pour", "permet de"]
+
+[Répéter pour TOUTES les valeurs en dehors des repères]
 
 ================================================================================
-2. VALEURS DANS LES REPÈRES
+2. VALEURS DANS LES REPÈRES HABITUELS
 ================================================================================
 
-[Grouper par catégorie]
+[Grouper par catégorie : Hématologie, Biochimie, Hormonologie, etc.]
 
---- HÉMATOLOGIE (Cellules du sang)
+--- HÉMATOLOGIE (Numération des cellules sanguines)
 
-• [Nom] : [valeur] (repères : [intervalle])
-  [Définition courte en 1 phrase]
+• [Nom de l'analyse] : [valeur avec unité] (repères : [intervalle])
+  [Définition courte : CE QUE C'EST uniquement, JAMAIS à quoi ça sert]
+
+• [Nom de l'analyse] : [valeur avec unité] (repères : [intervalle])
+  [Définition courte en 1 phrase simple]
 
 --- BIOCHIMIE
 
-Fonction rénale :
-• [Nom] : [valeur] (repères : [intervalle])
-  [Définition courte]
+Fonction rénale (reins) :
+• [Nom de l'analyse] : [valeur avec unité] (repères : [intervalle])
+  [Définition courte en 1 phrase simple]
 
-Bilan lipidique :
-• [Nom] : [valeur] (repères : [intervalle])
-  [Définition courte]
+Bilan lipidique (graisses dans le sang) :
+• [Nom de l'analyse] : [valeur avec unité] (repères : [intervalle])
+  [Définition courte en 1 phrase simple]
 
-Bilan hépatique :
-• [Nom] : [valeur] (repères : [intervalle])
-  [Définition courte]
+Bilan hépatique (foie) :
+• [Nom de l'analyse] : [valeur avec unité] (repères : [intervalle])
+  [Définition courte en 1 phrase simple]
 
-Métabolisme glucidique :
-• [Nom] : [valeur] (repères : [intervalle])
-  [Définition courte]
+Métabolisme glucidique (sucre dans le sang) :
+• [Nom de l'analyse] : [valeur avec unité] (repères : [intervalle])
+  [Définition courte en 1 phrase simple]
 
 --- HORMONOLOGIE (Hormones)
 
-• [Nom] : [valeur] (repères : [intervalle])
-  [Définition courte]
+• [Nom de l'analyse] : [valeur avec unité] (repères : [intervalle])
+  [Définition courte en 1 phrase simple]
 
---- SÉROLOGIES (Recherche d'infections)
+--- SÉROLOGIES (Recherche d'infections ou d'anticorps)
 
-• [Nom] : [résultat] (repères : [intervalle])
-  [Définition courte]
+• [Nom de l'analyse] : [résultat] (repères : [intervalle])
+  [Définition courte en 1 phrase simple]
 
 --- AUTRES ANALYSES
 
-• [Nom] : [valeur] (repères : [intervalle])
-  [Définition courte]
+• [Nom de l'analyse] : [valeur avec unité] (repères : [intervalle])
+  [Définition courte en 1 phrase simple]
 
 ================================================================================
-3. RÉSUMÉ
+3. RÉCAPITULATIF
 ================================================================================
 
-Votre bilan comprend [X] analyses réparties en [liste des catégories].
-[Y] valeurs se situent dans les repères du laboratoire.
-[Z] valeurs se situent en dehors des repères du laboratoire.
+[Résumé final clair, structuré et compréhensible par le grand public]
+[Mentionner le nombre total d'analyses et combien sont dans/hors repères]
+[Lister les catégories d'analyses effectuées : hématologie, biochimie, etc.]
+[STRICTEMENT FACTUEL - juste compter et lister]
+[JAMAIS expliquer ce que mesurent les analyses]
+[JAMAIS dire "important", "aide à", "joue un rôle", "permet de"]
 
 ================================================================================
 RAPPEL IMPORTANT
 ================================================================================
 
-Ce document explique les termes de vos analyses de façon pédagogique.
-Il ne constitue pas une interprétation médicale.
-Pour toute question sur vos résultats, consultez votre médecin.
+Ce résumé a pour objectif d'aider à comprendre les analyses figurant sur ce compte-rendu. Il ne constitue pas une interprétation médicale. Pour toute question concernant vos résultats, veuillez consulter votre médecin.
 
 ================================================================================`;
 
@@ -271,29 +370,17 @@ Pour toute question sur vos résultats, consultez votre médecin.
       model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
-        { 
-          role: 'user', 
-          content: `Analyse ces résultats biologiques et explique-les de façon pédagogique.
-
-IMPORTANT : 
-- Compare RIGOUREUSEMENT chaque valeur numérique avec sa référence
-- Une valeur est hors repères SEULEMENT si elle dépasse STRICTEMENT les limites
-- Vérifie particulièrement : Créatinine urinaire, Chlore, Polynucléaires neutrophiles, Cholestérol non-HDL
-- Utilise la virgule (,) comme séparateur décimal
-
-Résultats :
-${textInput}` 
-        },
+        { role: 'user', content: `Voici les résultats d'analyses biologiques à expliquer de façon pédagogique (SANS interprétation médicale) :\n\n${textInput}` },
       ],
-      temperature: 0.05,
-      max_tokens: 4500,
+      temperature: 0.1,  // Reduced for more consistent parsing
+      max_tokens: 3500,
     });
 
     const analysisResult = completion.choices[0].message.content.trim();
 
     let fileBase64 = null;
     if (pdfBuffer) {
-      const updatedPdfBuffer = await appendResultsToPdf(pdfBuffer, analysisResult);
+      const updatedPdfBuffer = await appendResultsToPdf(pdfBuffer, analysisResult, textInput);
       fileBase64 = updatedPdfBuffer.toString('base64');
     }
 
@@ -313,14 +400,15 @@ ${textInput}`
 });
 
 // ========================
-// PROFESSIONAL PDF DESIGN WITH GREEN/RED INDICATORS
+// ULTIMATE PROFESSIONAL PDF DESIGN
 // ========================
-async function appendResultsToPdf(originalPdfBuffer, resultsText) {
+async function appendResultsToPdf(originalPdfBuffer, resultsText, textInput) {
   const pdfDoc = await PDFDocument.load(originalPdfBuffer);
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
+  // PREMIUM COLOR PALETTE
   const C = {
     navy: rgb(0.05, 0.20, 0.35),
     blue: rgb(0.15, 0.45, 0.75),
@@ -331,12 +419,13 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
     red: rgb(0.78, 0.10, 0.10),
     redBg: rgb(0.99, 0.95, 0.95),
     redLight: rgb(0.95, 0.75, 0.75),
+    orange: rgb(0.85, 0.50, 0.10),
+    orangeBg: rgb(0.99, 0.97, 0.93),
     charcoal: rgb(0.15, 0.15, 0.18),
     gray: rgb(0.35, 0.35, 0.40),
     lightGray: rgb(0.55, 0.55, 0.58),
     silver: rgb(0.88, 0.88, 0.90),
-    orange: rgb(0.85, 0.50, 0.10),
-    orangeBg: rgb(0.99, 0.97, 0.93),
+    offWhite: rgb(0.98, 0.98, 0.99),
     white: rgb(1, 1, 1),
   };
 
@@ -345,9 +434,28 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
   const margin = 55;
   const maxWidth = width - margin * 2;
 
+  // Parse report date from textInput
+  let dateStr = 'Date inconnue';
+  const editDateMatch = textInput.match(/Édité le (\d+) (\w+) (\d{4})/);
+  if (editDateMatch) {
+    const day = parseInt(editDateMatch[1], 10);
+    const monthStr = editDateMatch[2].toLowerCase();
+    const year = parseInt(editDateMatch[3], 10);
+    const months = {
+      janvier: 0, février: 1, mars: 2, avril: 3, mai: 4, juin: 5,
+      juillet: 6, août: 7, septembre: 8, octobre: 9, novembre: 10, décembre: 11
+    };
+    const month = months[monthStr];
+    if (month !== undefined) {
+      const editDate = new Date(year, month, day);
+      dateStr = editDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    }
+  }
+
   // ========================
-  // PREMIUM HEADER
+  // PREMIUM HEADER DESIGN
   // ========================
+  
   page.drawRectangle({ 
     x: 0, y: height - 100, width, height: 100, 
     color: C.navy 
@@ -371,17 +479,14 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
     size: 10, font: italicFont, color: C.lightBlue 
   });
   
-  const today = new Date().toLocaleDateString('fr-FR', { 
-    day: '2-digit', month: 'long', year: 'numeric' 
-  });
-  const dateW = font.widthOfTextAtSize(today, 9);
+  const dateW = font.widthOfTextAtSize(dateStr, 9);
   
   page.drawRectangle({ 
     x: width - margin - dateW - 25, y: height - 72, 
     width: dateW + 25, height: 24, 
     color: C.blue 
   });
-  page.drawText(today, { 
+  page.drawText(dateStr, { 
     x: width - margin - dateW - 12, y: height - 65, 
     size: 9, font: font, color: C.white 
   });
@@ -389,8 +494,9 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
   let y = height - 140;
 
   // ========================
-  // TITLE
+  // DOCUMENT TITLE SECTION
   // ========================
+  
   page.drawRectangle({ 
     x: margin - 10, y: y - 5, width: 6, height: 32, 
     color: C.blue 
@@ -410,22 +516,61 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
   y -= 50;
 
   // ========================
-  // CONTENT RENDERING
+  // CONFIDENTIALITY NOTICE
   // ========================
-  const lines = resultsText.split('\n');
-  let inAbnormalSection = false;
-  let inNormalSection = false;
-  let sectionNum = 0;
+  
+  const noticeH = 32;
+  page.drawRectangle({ 
+    x: margin, y: y - noticeH, 
+    width: maxWidth, height: noticeH, 
+    color: C.lightBlue, 
+    borderColor: C.blue, borderWidth: 1 
+  });
+  
+  page.drawRectangle({ 
+    x: margin + 12, y: y - 20, width: 8, height: 8, 
+    color: C.navy, borderColor: C.navy, borderWidth: 1 
+  });
+  page.drawRectangle({ 
+    x: margin + 14, y: y - 16, width: 4, height: 4, 
+    color: C.lightBlue 
+  });
+  
+  page.drawText('DOCUMENT PEDAGOGIQUE', { 
+    x: margin + 30, y: y - 18, 
+    size: 9, font: boldFont, color: C.navy 
+  });
+  page.drawText('- Aide a la comprehension des termes medicaux', { 
+    x: margin + 165, y: y - 18, 
+    size: 8, font: font, color: C.gray 
+  });
 
-  for (let line of lines) {
-    line = line.trim();
+  y -= 60;
+
+  // ========================
+  // SMART CONTENT RENDERING
+  // ========================
+  
+  const lines = resultsText.split('\n');
+  let sectionNum = 0;
+  let inAbnormal = false;
+  let inNormal = false;
+  let inRecap = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
     
-    if (!line || line.includes('====')) continue;
+    if (!line) { 
+      y -= 8; 
+      continue; 
+    }
 
     if (y < margin + 100) {
       page = pdfDoc.addPage();
       y = height - margin - 20;
     }
+
+    if (line.includes('====')) continue;
 
     let textFont = font;
     let textSize = 10;
@@ -437,36 +582,19 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
     let borderColor = null;
     let iconType = null;
 
-    // Detect sections
-    if (line.includes('VALEURS EN DEHORS')) {
-      inAbnormalSection = true;
-      inNormalSection = false;
-    } else if (line.includes('VALEURS DANS LES REPÈRES')) {
-      inAbnormalSection = false;
-      inNormalSection = true;
-    } else if (line.includes('RÉSUMÉ') || line.includes('RAPPEL')) {
-      inAbnormalSection = false;
-      inNormalSection = false;
-    }
-
-    // Section headers (1. 2. 3.)
+    // ========================
+    // SECTION HEADERS
+    // ========================
     if (line.match(/^\d+\.\s+[A-ZÉÈÊ]/)) {
       sectionNum++;
       
       const badgeSize = 32;
       const badgeX = margin - 5;
       
-      let badgeColor = C.blue;
-      if (line.includes('DEHORS')) {
-        badgeColor = C.red;
-      } else if (line.includes('DANS')) {
-        badgeColor = C.green;
-      }
-      
       page.drawRectangle({ 
         x: badgeX, y: y - 8, 
         width: badgeSize, height: badgeSize, 
-        color: badgeColor 
+        color: C.blue 
       });
       
       page.drawText(sectionNum.toString(), { 
@@ -480,29 +608,52 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
       textColor = C.navy;
       leftPad = 40;
       extraSpace = 20;
+      
+      if (line.includes('DEHORS')) {  // Fixed: removed || 'REPÈRES' to avoid matching normal section
+        inAbnormal = true;
+        inNormal = false;
+        inRecap = false;
+        iconType = 'alert';
+      } else if (line.includes('DANS')) {
+        inAbnormal = false;
+        inNormal = true;
+        inRecap = false;
+        iconType = 'check';
+      } else if (line.includes('RÉCAPITULATIF') || line.includes('RECAPITULATIF')) {
+        inAbnormal = false;
+        inNormal = false;
+        inRecap = true;
+        iconType = 'info';
+      }
     }
-    // Subsections (---)
+    
+    // ========================
+    // SUBSECTION HEADERS
+    // ========================
     else if (line.startsWith('---')) {
       line = line.replace(/^---\s*/, '');
       
       page.drawRectangle({ 
         x: margin + 5, y: y - 6, 
         width: 4, height: 22, 
-        color: inNormalSection ? C.green : C.blue 
+        color: C.blue 
       });
       
       textFont = boldFont;
       textSize = 12;
-      textColor = inNormalSection ? C.green : C.navy;
+      textColor = C.navy;
       leftPad = 18;
       extraSpace = 15;
     }
-    // Bullet points (• or test names)
-    else if (line.startsWith('•')) {
-      line = line.replace(/^•\s*/, '');
+    
+    // ========================
+    // TEST RESULTS
+    // ========================
+    else if (line.startsWith('•') || line.startsWith('*') || line.startsWith('-')) {
+      line = line.replace(/^[•*-]\s*/, '');
       leftPad = 25;
       
-      if (inAbnormalSection && !line.toLowerCase().includes('aucune valeur')) {
+      if (inAbnormal) {
         drawBox = true;
         boxColor = C.redBg;
         borderColor = C.redLight;
@@ -513,53 +664,84 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
         if (line.includes(':') && !line.toLowerCase().includes('qu\'est')) {
           textSize = 11;
         }
-      } else if (inNormalSection) {
-        // Green styling for normal values
+      } else if (inNormal) {
         textColor = C.green;
-        textFont = boldFont;
         iconType = 'check';
         
         if (line.includes(':')) {
+          textFont = boldFont;
           textSize = 10;
         }
+      } else if (inRecap) {
+        textColor = C.charcoal;
+        iconType = 'bullet';
+      } else {
+        iconType = 'bullet';
       }
     }
-    // Field labels
-    else if (line.match(/^(Votre|Repères|Position|Définition)/i)) {
-      textFont = boldFont;
-      textSize = 9;
-      textColor = C.gray;
-      leftPad = 30;
-      extraSpace = 5;
-    }
-    // Category labels (ending with :)
-    else if (line.match(/^[A-ZÀ-Ÿ].*:$/) && !line.includes('Vue') && leftPad === 0) {
+    
+    // ========================
+    // CATEGORY LABELS
+    // ========================
+    else if (line.match(/^[A-ZÉÈÊ].*:$/) && !line.startsWith('Vue') && !line.startsWith('Nombre') && !line.startsWith('Catégories')) {
       textFont = boldFont;
       textSize = 10;
-      textColor = inNormalSection ? C.green : C.blue;
+      textColor = C.blue;
       leftPad = 15;
-      extraSpace = 8;
+      extraSpace = 10;
     }
-    // Regular description text
-    else if (leftPad === 0) {
+    
+    // ========================
+    // VALUE LABELS AND SUBSECTIONS
+    // ========================
+    else if (line.match(/^(Votre|Repères|Position|Qu'est-ce|Nombre|Valeurs|Catégories)/i) && line.includes(':')) {
+      if (line.match(/^Qu'est-ce/i)) {
+        textFont = boldFont;
+        textSize = 9;
+        textColor = C.navy;
+        leftPad = 30;
+        extraSpace = 5;
+      } else {
+        textFont = font;
+        textSize = 9;
+        textColor = C.gray;
+        leftPad = 30;
+      }
+    }
+    
+    // ========================
+    // DEFINITION TEXT
+    // ========================
+    else if (leftPad === 0 && i > 0 && !line.match(/^[A-ZÉÈÊ][A-ZÉÈÊ]/)) {
       leftPad = 30;
-      textSize = 9;
       textColor = C.charcoal;
+      textSize = 9;
+    }
+    
+    // ========================
+    // OVERRIDE: Fix color for normal section content
+    // ========================
+    if (inNormal && !line.startsWith('•') && !line.startsWith('*') && !line.startsWith('-') && !line.includes('---') && leftPad > 0) {
+      textColor = C.charcoal;  // Reset to normal text color for definitions
     }
 
-    // Draw background box for abnormal values
+    // ========================
+    // DRAW BACKGROUND BOX
+    // ========================
     if (drawBox) {
-      const boxH = 22;
+      const boxH = 20;
       page.drawRectangle({ 
         x: margin, y: y - 6, 
         width: maxWidth, height: boxH, 
         color: boxColor,
-        borderColor: borderColor,
-        borderWidth: 1.5
+        borderColor: borderColor || C.silver,
+        borderWidth: 1
       });
     }
 
-    // Draw icon
+    // ========================
+    // DRAW ICON
+    // ========================
     if (iconType) {
       const iconX = margin + leftPad - 16;
       const iconY = y + 2;
@@ -576,16 +758,32 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
       } else if (iconType === 'check') {
         page.drawCircle({ 
           x: iconX, y: iconY, size: 7, 
-          color: C.greenLight, borderColor: C.green, borderWidth: 1.5 
+          color: C.greenBg, borderColor: C.green, borderWidth: 1.5 
         });
-        page.drawText('✓', { 
-          x: iconX - 3, y: iconY - 3.5, 
-          size: 10, font: boldFont, color: C.green 
+        page.drawText('+', { 
+          x: iconX - 3, y: iconY - 3, 
+          size: 11, font: boldFont, color: C.green 
+        });
+      } else if (iconType === 'bullet') {
+        page.drawCircle({ 
+          x: iconX, y: iconY, size: 3, 
+          color: C.blue 
+        });
+      } else if (iconType === 'info') {
+        page.drawCircle({ 
+          x: iconX, y: iconY, size: 7, 
+          color: C.lightBlue, borderColor: C.blue, borderWidth: 1.5 
+        });
+        page.drawText('i', { 
+          x: iconX - 2, y: iconY - 3, 
+          size: 9, font: italicFont, color: C.blue 
         });
       }
     }
 
-    // Word wrap
+    // ========================
+    // WORD WRAP AND RENDER
+    // ========================
     const words = line.split(' ');
     let currentLine = '';
     const effectiveWidth = maxWidth - leftPad;
@@ -599,7 +797,7 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
           x: margin + leftPad, y, 
           size: textSize, font: textFont, color: textColor 
         });
-        y -= 15;
+        y -= 16;
         
         if (y < margin + 100) {
           page = pdfDoc.addPage();
@@ -617,15 +815,16 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
         x: margin + leftPad, y, 
         size: textSize, font: textFont, color: textColor 
       });
-      y -= 15 + extraSpace;
+      y -= 16 + extraSpace;
     }
   }
 
   // ========================
-  // DISCLAIMER
+  // DISCLAIMER BOX
   // ========================
+  
   y -= 50;
-  if (y < margin + 120) {
+  if (y < margin + 140) {
     page = pdfDoc.addPage();
     y = height - margin - 20;
   }
@@ -661,14 +860,14 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
     size: 10, font: boldFont, color: C.orange 
   });
   
-  const disclaimerLines = [
+  const disclaimerText = [
     'Ce resume a pour objectif d\'aider a comprendre les analyses',
     'figurant sur ce compte-rendu. Il ne constitue pas une interpretation',
     'medicale. Pour toute question concernant vos resultats,',
     'veuillez consulter votre medecin.',
   ];
   
-  disclaimerLines.forEach((txt, idx) => {
+  disclaimerText.forEach((txt, idx) => {
     page.drawText(txt, { 
       x: margin + 25, y: y - 45 - idx * 14, 
       size: 9, font: font, color: C.gray 
@@ -676,8 +875,9 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
   });
 
   // ========================
-  // FOOTER
+  // PROFESSIONAL FOOTER
   // ========================
+  
   const footerY = 35;
   
   page.drawLine({ 
@@ -691,7 +891,7 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
     size: 8, font: boldFont, color: C.navy 
   });
   
-  const centerText = `Document genere le ${today}`;
+  const centerText = `Document genere le ${dateStr}`;
   const centerW = font.widthOfTextAtSize(centerText, 7);
   page.drawText(centerText, { 
     x: (width - centerW) / 2, y: footerY, 
@@ -710,6 +910,7 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
   return Buffer.from(pdfBytes);
 }
 
+// ========================
 app.listen(PORT, () => {
   console.log(`🚀 Avencio API running on port ${PORT}`);
 });
