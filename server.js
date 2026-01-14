@@ -204,10 +204,17 @@ CONTENU AUTORISÉ UNIQUEMENT :
   • fournir une définition PLUS COMPLÈTE (2 à 3 phrases),
   • en restant STRICTEMENT descriptive,
   • en expliquant uniquement :
-    - ce que mesure l'analyse,
-    - à quoi elle correspond de manière générale,
-    - dans quel cadre biologique général elle est habituellement utilisée,
-  • sans expliquer une cause, une conséquence ou une interprétation.
+    - ce que mesure l'analyse (quelle substance, cellule, molécule),
+    - où se trouve cette substance dans le corps,
+    - c'est quoi exactement (définition chimique/biologique simple),
+  • INTERDICTIONS ABSOLUES dans les définitions :
+    - Ne JAMAIS expliquer "à quoi ça sert"
+    - Ne JAMAIS dire "joue un rôle dans..."
+    - Ne JAMAIS dire "aide à..."
+    - Ne JAMAIS dire "important pour..."
+    - Ne JAMAIS dire "utilisé pour évaluer/vérifier/mesurer..."
+    - Ne JAMAIS mentionner une fonction biologique
+  • UNIQUEMENT décrire CE QUE C'EST, pas À QUOI ÇA SERT.
 
 3) RÉSUMÉ FINAL PÉDAGOGIQUE (SANS INTERPRÉTATION MÉDICALE)
 - Fournir un résumé final clair, structuré et compréhensible par le grand public.
@@ -221,9 +228,12 @@ CONTENU AUTORISÉ UNIQUEMENT :
 Le résumé peut :
 - rappeler que certaines valeurs se situent dans les repères habituels du laboratoire,
 - signaler que certaines valeurs se situent en dehors de ces repères,
-- expliquer de façon simple ce que ces analyses mesurent de manière générale.
+- mentionner quelles catégories d'analyses ont été réalisées.
 
 Le résumé ne doit PAS :
+- expliquer ce que mesurent les analyses,
+- expliquer à quoi servent les analyses,
+- dire "important pour", "aide à", "joue un rôle",
 - rassurer ou inquiéter médicalement,
 - utiliser un vocabulaire médical décisionnel,
 - contenir de recommandations.
@@ -260,10 +270,11 @@ Votre bilan comporte [nombre total] analyses. [X] valeur(s) se situe(nt) en deho
   
   Qu'est-ce que c'est ?
   [Définition COMPLÈTE en 2-3 phrases STRICTEMENT descriptives :]
-  - Ce que mesure l'analyse (substance, cellule, molécule)
-  - À quoi elle sert dans l'organisme en général
-  - Dans quel contexte biologique elle est utilisée
-  [SANS JAMAIS interpréter, diagnostiquer ou faire un lien avec la santé du patient]
+  - Ce que c'est (substance, cellule, molécule, protéine, enzyme, etc.)
+  - Où ça se trouve dans le corps (sang, foie, muscles, etc.)
+  - Description chimique/biologique simple
+  [JAMAIS expliquer : à quoi ça sert, son rôle, sa fonction, pourquoi on le mesure]
+  [INTERDITS : "joue un rôle", "aide à", "important pour", "utilisé pour", "permet de"]
 
 [Répéter pour TOUTES les valeurs en dehors des repères]
 
@@ -276,7 +287,7 @@ Votre bilan comporte [nombre total] analyses. [X] valeur(s) se situe(nt) en deho
 --- HÉMATOLOGIE (Numération des cellules sanguines)
 
 • [Nom de l'analyse] : [valeur avec unité] (repères : [intervalle])
-  [Définition courte en 1 phrase simple]
+  [Définition courte : CE QUE C'EST uniquement, JAMAIS à quoi ça sert]
 
 • [Nom de l'analyse] : [valeur avec unité] (repères : [intervalle])
   [Définition courte en 1 phrase simple]
@@ -319,11 +330,11 @@ Métabolisme glucidique (sucre dans le sang) :
 ================================================================================
 
 [Résumé final clair, structuré et compréhensible par le grand public]
-[Reprendre l'ensemble des analyses du bilan de manière globale]
-[Utiliser uniquement des phrases descriptives et factuelles]
-[Rappeler que certaines valeurs se situent dans/en dehors des repères habituels]
-[Expliquer de façon simple ce que ces analyses mesurent de manière générale]
-[JAMAIS interpréter, JAMAIS évoquer cause/risque/pathologie, JAMAIS conclure sur santé]
+[Mentionner le nombre total d'analyses et combien sont dans/hors repères]
+[Lister les catégories d'analyses effectuées : hématologie, biochimie, etc.]
+[STRICTEMENT FACTUEL - juste compter et lister]
+[JAMAIS expliquer ce que mesurent les analyses]
+[JAMAIS dire "important", "aide à", "joue un rôle", "permet de"]
 
 ================================================================================
 RAPPEL IMPORTANT
@@ -669,6 +680,13 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
       leftPad = 30;
       textColor = C.charcoal;
       textSize = 9;
+    }
+    
+    // ========================
+    // OVERRIDE: Fix color for normal section content
+    // ========================
+    if (inNormal && !line.startsWith('•') && !line.startsWith('*') && !line.startsWith('-') && !line.includes('---') && leftPad > 0) {
+      textColor = C.charcoal;  // Reset to normal text color for definitions
     }
 
     // ========================
