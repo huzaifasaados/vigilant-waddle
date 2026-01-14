@@ -408,10 +408,10 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText, textInput) {
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
-  // PREMIUM COLOR PALETTE
+  // PREMIUM COLOR PALETTE UPDATED TO MATCH CERBALLIANCE
   const C = {
     navy: rgb(0.05, 0.20, 0.35),
-    blue: rgb(0.15, 0.45, 0.75),
+    blue: rgb(0, 209/255, 220/255), // #00D1DC Robin's Egg Blue from Cerballiance brand
     lightBlue: rgb(0.88, 0.94, 0.98),
     green: rgb(0.11, 0.56, 0.25),
     greenBg: rgb(0.94, 0.98, 0.95),
