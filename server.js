@@ -167,6 +167,14 @@ RÈGLES ABSOLUES À RESPECTER :
   "pathologique", "normal/anormal sur le plan médical",
   "bon état de santé", "trouble", "atteinte", "maladie".
 
+INTERDICTIONS STRICTES DANS LES DÉFINITIONS :
+- JAMAIS dire ce que ça fait : "transporte", "aide à", "permet de", "sert à"
+- JAMAIS dire à quoi ça sert : "pour", "afin de", "utilisé pour"  
+- JAMAIS dire son rôle : "joue un rôle", "important pour", "impliqué dans"
+- JAMAIS dire sa fonction : "stimule", "régule", "contrôle", "évalue", "mesure"
+- JAMAIS dire pourquoi on le mesure : "pour vérifier", "pour évaluer", "pour estimer"
+- SEULEMENT dire CE QUE C'EST : un type de cellule, une protéine, un minéral, présent dans le sang/foie/etc.
+
 RÈGLES DE FORMATAGE DES NOMBRES :
 - Utilise TOUJOURS la virgule comme séparateur décimal (ex: 1,15 et NON 1.15)
 - C'est le format français standard pour les analyses biologiques
