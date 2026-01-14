@@ -408,24 +408,12 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText, textInput) {
   const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
   const italicFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique);
 
-  // PREMIUM COLOR PALETTE
+  // COLOR PALETTE UPDATED TO MATCH CERBALLIANCE STYLE
   const C = {
-    navy: rgb(0.05, 0.20, 0.35),
-    blue: rgb(0.15, 0.45, 0.75),
-    lightBlue: rgb(0.88, 0.94, 0.98),
-    green: rgb(0.11, 0.56, 0.25),
-    greenBg: rgb(0.94, 0.98, 0.95),
-    greenLight: rgb(0.75, 0.90, 0.80),
-    red: rgb(0.78, 0.10, 0.10),
-    redBg: rgb(0.99, 0.95, 0.95),
-    redLight: rgb(0.95, 0.75, 0.75),
-    orange: rgb(0.85, 0.50, 0.10),
-    orangeBg: rgb(0.99, 0.97, 0.93),
-    charcoal: rgb(0.15, 0.15, 0.18),
-    gray: rgb(0.35, 0.35, 0.40),
-    lightGray: rgb(0.55, 0.55, 0.58),
-    silver: rgb(0.88, 0.88, 0.90),
-    offWhite: rgb(0.98, 0.98, 0.99),
+    black: rgb(0, 0, 0),
+    blue: rgb(0 / 255, 209 / 255, 220 / 255),  // #00D1DC
+    gray: rgb(0.5, 0.5, 0.5),
+    lightGray: rgb(0.8, 0.8, 0.8),
     white: rgb(1, 1, 1),
   };
 
@@ -452,105 +440,37 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText, textInput) {
     }
   }
 
-  // ========================
-  // PREMIUM HEADER DESIGN
-  // ========================
-  
-  page.drawRectangle({ 
-    x: 0, y: height - 100, width, height: 100, 
-    color: C.navy 
-  });
-  page.drawRectangle({ 
-    x: 0, y: height - 105, width, height: 5, 
-    color: C.blue 
-  });
-  
-  page.drawText('AVENCIO', { 
-    x: margin, y: height - 45, 
-    size: 28, font: boldFont, color: C.white 
-  });
-  page.drawText('HEALTH', { 
-    x: margin + 135, y: height - 45, 
-    size: 28, font: font, color: C.lightBlue 
-  });
-  
-  page.drawText('Comprendre vos Analyses Biologiques', { 
-    x: margin, y: height - 70, 
-    size: 10, font: italicFont, color: C.lightBlue 
-  });
-  
-  const dateW = font.widthOfTextAtSize(dateStr, 9);
-  
-  page.drawRectangle({ 
-    x: width - margin - dateW - 25, y: height - 72, 
-    width: dateW + 25, height: 24, 
-    color: C.blue 
-  });
-  page.drawText(dateStr, { 
-    x: width - margin - dateW - 12, y: height - 65, 
-    size: 9, font: font, color: C.white 
+  let y = height - margin;
+
+  // SIMPLE HEADER
+  page.drawText('AVENCIO HEALTH', { 
+    x: margin, y: y, 
+    size: 14, font: boldFont, color: C.blue 
   });
 
-  let y = height - 140;
+  page.drawText(`Guide Pédagogique - Édité le ${dateStr}`, { 
+    x: width - margin - font.widthOfTextAtSize(`Guide Pédagogique - Édité le ${dateStr}`, 10), y: y, 
+    size: 10, font: font, color: C.gray 
+  });
 
-  // ========================
-  // DOCUMENT TITLE SECTION
-  // ========================
-  
-  page.drawRectangle({ 
-    x: margin - 10, y: y - 5, width: 6, height: 32, 
-    color: C.blue 
+  y -= 40;
+
+  // DOCUMENT TITLE
+  page.drawText('Comprendre les termes de vos analyses', { 
+    x: margin, y: y, 
+    size: 16, font: boldFont, color: C.black 
   });
-  
-  page.drawText('Guide Pedagogique de vos Resultats', { 
-    x: margin + 5, y: y, 
-    size: 18, font: boldFont, color: C.navy 
-  });
-  
+
+  const titleWidth = boldFont.widthOfTextAtSize('Comprendre les termes de vos analyses', 16);
   page.drawLine({ 
-    start: { x: margin + 5, y: y - 8 }, 
-    end: { x: margin + 320, y: y - 8 }, 
+    start: { x: margin, y: y - 5 }, 
+    end: { x: margin + titleWidth, y: y - 5 }, 
     thickness: 2, color: C.blue 
   });
 
-  y -= 50;
+  y -= 40;
 
-  // ========================
-  // CONFIDENTIALITY NOTICE
-  // ========================
-  
-  const noticeH = 32;
-  page.drawRectangle({ 
-    x: margin, y: y - noticeH, 
-    width: maxWidth, height: noticeH, 
-    color: C.lightBlue, 
-    borderColor: C.blue, borderWidth: 1 
-  });
-  
-  page.drawRectangle({ 
-    x: margin + 12, y: y - 20, width: 8, height: 8, 
-    color: C.navy, borderColor: C.navy, borderWidth: 1 
-  });
-  page.drawRectangle({ 
-    x: margin + 14, y: y - 16, width: 4, height: 4, 
-    color: C.lightBlue 
-  });
-  
-  page.drawText('DOCUMENT PEDAGOGIQUE', { 
-    x: margin + 30, y: y - 18, 
-    size: 9, font: boldFont, color: C.navy 
-  });
-  page.drawText('- Aide a la comprehension des termes medicaux', { 
-    x: margin + 165, y: y - 18, 
-    size: 8, font: font, color: C.gray 
-  });
-
-  y -= 60;
-
-  // ========================
-  // SMART CONTENT RENDERING
-  // ========================
-  
+  // CONTENT RENDERING
   const lines = resultsText.split('\n');
   let sectionNum = 0;
   let inAbnormal = false;
@@ -565,225 +485,81 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText, textInput) {
       continue; 
     }
 
-    if (y < margin + 100) {
+    if (y < margin + 50) {
       page = pdfDoc.addPage();
-      y = height - margin - 20;
+      y = height - margin;
     }
 
     if (line.includes('====')) continue;
 
     let textFont = font;
     let textSize = 10;
-    let textColor = C.charcoal;
+    let textColor = C.black;
     let leftPad = 0;
     let extraSpace = 0;
-    let drawBox = false;
-    let boxColor = C.white;
-    let borderColor = null;
-    let iconType = null;
 
-    // ========================
     // SECTION HEADERS
-    // ========================
     if (line.match(/^\d+\.\s+[A-ZÉÈÊ]/)) {
-      sectionNum++;
-      
-      const badgeSize = 32;
-      const badgeX = margin - 5;
-      
-      page.drawRectangle({ 
-        x: badgeX, y: y - 8, 
-        width: badgeSize, height: badgeSize, 
-        color: C.blue 
-      });
-      
-      page.drawText(sectionNum.toString(), { 
-        x: badgeX + (sectionNum > 9 ? 8 : 11), 
-        y: y + 4, 
-        size: 16, font: boldFont, color: C.white 
-      });
-      
       textFont = boldFont;
-      textSize = 15;
-      textColor = C.navy;
-      leftPad = 40;
-      extraSpace = 20;
+      textSize = 14;
+      leftPad = 0;
+      extraSpace = 10;
       
-      if (line.includes('DEHORS')) {  // Fixed: removed || 'REPÈRES' to avoid matching normal section
+      if (line.includes('DEHORS')) {
         inAbnormal = true;
         inNormal = false;
         inRecap = false;
-        iconType = 'alert';
       } else if (line.includes('DANS')) {
         inAbnormal = false;
         inNormal = true;
         inRecap = false;
-        iconType = 'check';
       } else if (line.includes('RÉCAPITULATIF') || line.includes('RECAPITULATIF')) {
         inAbnormal = false;
         inNormal = false;
         inRecap = true;
-        iconType = 'info';
       }
     }
     
-    // ========================
     // SUBSECTION HEADERS
-    // ========================
     else if (line.startsWith('---')) {
       line = line.replace(/^---\s*/, '');
-      
-      page.drawRectangle({ 
-        x: margin + 5, y: y - 6, 
-        width: 4, height: 22, 
-        color: C.blue 
-      });
-      
       textFont = boldFont;
       textSize = 12;
-      textColor = C.navy;
-      leftPad = 18;
-      extraSpace = 15;
-    }
-    
-    // ========================
-    // TEST RESULTS
-    // ========================
-    else if (line.startsWith('•') || line.startsWith('*') || line.startsWith('-')) {
-      line = line.replace(/^[•*-]\s*/, '');
-      leftPad = 25;
-      
-      if (inAbnormal) {
-        drawBox = true;
-        boxColor = C.redBg;
-        borderColor = C.redLight;
-        textColor = C.red;
-        textFont = boldFont;
-        iconType = 'alert';
-        
-        if (line.includes(':') && !line.toLowerCase().includes('qu\'est')) {
-          textSize = 11;
-        }
-      } else if (inNormal) {
-        textColor = C.green;
-        iconType = 'check';
-        
-        if (line.includes(':')) {
-          textFont = boldFont;
-          textSize = 10;
-        }
-      } else if (inRecap) {
-        textColor = C.charcoal;
-        iconType = 'bullet';
-      } else {
-        iconType = 'bullet';
-      }
-    }
-    
-    // ========================
-    // CATEGORY LABELS
-    // ========================
-    else if (line.match(/^[A-ZÉÈÊ].*:$/) && !line.startsWith('Vue') && !line.startsWith('Nombre') && !line.startsWith('Catégories')) {
-      textFont = boldFont;
-      textSize = 10;
-      textColor = C.blue;
-      leftPad = 15;
+      leftPad = 10;
       extraSpace = 10;
     }
     
-    // ========================
-    // VALUE LABELS AND SUBSECTIONS
-    // ========================
-    else if (line.match(/^(Votre|Repères|Position|Qu'est-ce|Nombre|Valeurs|Catégories)/i) && line.includes(':')) {
-      if (line.match(/^Qu'est-ce/i)) {
-        textFont = boldFont;
-        textSize = 9;
-        textColor = C.navy;
-        leftPad = 30;
-        extraSpace = 5;
-      } else {
-        textFont = font;
-        textSize = 9;
-        textColor = C.gray;
-        leftPad = 30;
-      }
+    // TEST RESULTS
+    else if (line.startsWith('•') || line.startsWith('*') || line.startsWith('-')) {
+      line = line.replace(/^[•*-]\s*/, '');
+      leftPad = 20;
+      textSize = 10;
     }
     
-    // ========================
+    // CATEGORY LABELS
+    else if (line.match(/^[A-ZÉÈÊ].*:$/) && !line.startsWith('Vue') && !line.startsWith('Nombre') && !line.startsWith('Catégories')) {
+      textFont = boldFont;
+      textSize = 10;
+      leftPad = 15;
+      extraSpace = 5;
+    }
+    
+    // VALUE LABELS AND SUBSECTIONS
+    else if (line.match(/^(Votre|Repères|Position|Qu'est-ce|Nombre|Valeurs|Catégories)/i) && line.includes(':')) {
+      textFont = font;
+      textSize = 9;
+      textColor = C.gray;
+      leftPad = 30;
+      extraSpace = 0;
+    }
+    
     // DEFINITION TEXT
-    // ========================
     else if (leftPad === 0 && i > 0 && !line.match(/^[A-ZÉÈÊ][A-ZÉÈÊ]/)) {
       leftPad = 30;
-      textColor = C.charcoal;
       textSize = 9;
     }
-    
-    // ========================
-    // OVERRIDE: Fix color for normal section content
-    // ========================
-    if (inNormal && !line.startsWith('•') && !line.startsWith('*') && !line.startsWith('-') && !line.includes('---') && leftPad > 0) {
-      textColor = C.charcoal;  // Reset to normal text color for definitions
-    }
 
-    // ========================
-    // DRAW BACKGROUND BOX
-    // ========================
-    if (drawBox) {
-      const boxH = 20;
-      page.drawRectangle({ 
-        x: margin, y: y - 6, 
-        width: maxWidth, height: boxH, 
-        color: boxColor,
-        borderColor: borderColor || C.silver,
-        borderWidth: 1
-      });
-    }
-
-    // ========================
-    // DRAW ICON
-    // ========================
-    if (iconType) {
-      const iconX = margin + leftPad - 16;
-      const iconY = y + 2;
-      
-      if (iconType === 'alert') {
-        page.drawCircle({ 
-          x: iconX, y: iconY, size: 7, 
-          color: C.redLight, borderColor: C.red, borderWidth: 1.5 
-        });
-        page.drawText('!', { 
-          x: iconX - 2.5, y: iconY - 3, 
-          size: 10, font: boldFont, color: C.red 
-        });
-      } else if (iconType === 'check') {
-        page.drawCircle({ 
-          x: iconX, y: iconY, size: 7, 
-          color: C.greenBg, borderColor: C.green, borderWidth: 1.5 
-        });
-        page.drawText('+', { 
-          x: iconX - 3, y: iconY - 3, 
-          size: 11, font: boldFont, color: C.green 
-        });
-      } else if (iconType === 'bullet') {
-        page.drawCircle({ 
-          x: iconX, y: iconY, size: 3, 
-          color: C.blue 
-        });
-      } else if (iconType === 'info') {
-        page.drawCircle({ 
-          x: iconX, y: iconY, size: 7, 
-          color: C.lightBlue, borderColor: C.blue, borderWidth: 1.5 
-        });
-        page.drawText('i', { 
-          x: iconX - 2, y: iconY - 3, 
-          size: 9, font: italicFont, color: C.blue 
-        });
-      }
-    }
-
-    // ========================
     // WORD WRAP AND RENDER
-    // ========================
     const words = line.split(' ');
     let currentLine = '';
     const effectiveWidth = maxWidth - leftPad;
@@ -797,11 +573,11 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText, textInput) {
           x: margin + leftPad, y, 
           size: textSize, font: textFont, color: textColor 
         });
-        y -= 16;
+        y -= textSize + 4;
         
-        if (y < margin + 100) {
+        if (y < margin + 50) {
           page = pdfDoc.addPage();
-          y = height - margin - 20;
+          y = height - margin;
         }
         
         currentLine = word;
@@ -815,87 +591,74 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText, textInput) {
         x: margin + leftPad, y, 
         size: textSize, font: textFont, color: textColor 
       });
-      y -= 16 + extraSpace;
+      y -= textSize + 4 + extraSpace;
+    }
+
+    // DRAW UNDERLINE FOR HEADERS
+    if (textSize >= 12) {  // For section and subsection headers
+      const lineWidth = textFont.widthOfTextAtSize(line, textSize);
+      page.drawLine({ 
+        start: { x: margin + leftPad, y: y + textSize / 2 + 2 }, 
+        end: { x: margin + leftPad + lineWidth, y: y + textSize / 2 + 2 }, 
+        thickness: 1.5, color: C.blue 
+      });
     }
   }
 
-  // ========================
-  // DISCLAIMER BOX
-  // ========================
-  
-  y -= 50;
-  if (y < margin + 140) {
+  // DISCLAIMER
+  y -= 20;
+  if (y < margin + 60) {
     page = pdfDoc.addPage();
-    y = height - margin - 20;
+    y = height - margin;
   }
 
-  const disclaimerH = 110;
-  
-  page.drawRectangle({ 
-    x: margin + 4, y: y - disclaimerH + 4, 
-    width: maxWidth, height: disclaimerH, 
-    color: rgb(0.85, 0.85, 0.87) 
+  page.drawText('Rappel important', { 
+    x: margin, y: y, 
+    size: 12, font: boldFont, color: C.black 
   });
-  
-  page.drawRectangle({ 
-    x: margin, y: y - disclaimerH, 
-    width: maxWidth, height: disclaimerH, 
-    color: C.orangeBg,
-    borderColor: C.orange, borderWidth: 2 
+
+  const discWidth = boldFont.widthOfTextAtSize('Rappel important', 12);
+  page.drawLine({ 
+    start: { x: margin, y: y - 5 }, 
+    end: { x: margin + discWidth, y: y - 5 }, 
+    thickness: 1.5, color: C.blue 
   });
-  
-  const crossX = margin + 18;
-  const crossY = y - 20;
-  page.drawRectangle({ 
-    x: crossX, y: crossY - 6, width: 2, height: 14, 
-    color: C.orange 
-  });
-  page.drawRectangle({ 
-    x: crossX - 5, y: crossY - 1, width: 12, height: 4, 
-    color: C.orange 
-  });
-  
-  page.drawText('IMPORTANT : AVERTISSEMENT', { 
-    x: margin + 40, y: y - 18, 
-    size: 10, font: boldFont, color: C.orange 
-  });
-  
+
+  y -= 20;
+
   const disclaimerText = [
-    'Ce resume a pour objectif d\'aider a comprendre les analyses',
-    'figurant sur ce compte-rendu. Il ne constitue pas une interpretation',
-    'medicale. Pour toute question concernant vos resultats,',
-    'veuillez consulter votre medecin.',
+    "Ce résumé a pour objectif d'aider à comprendre les analyses",
+    "figurant sur ce compte-rendu. Il ne constitue pas une interprétation",
+    "médicale. Pour toute question concernant vos résultats,",
+    "veuillez consulter votre médecin."
   ];
   
   disclaimerText.forEach((txt, idx) => {
     page.drawText(txt, { 
-      x: margin + 25, y: y - 45 - idx * 14, 
-      size: 9, font: font, color: C.gray 
+      x: margin, y: y - idx * 12, 
+      size: 10, font: font, color: C.black 
     });
   });
 
-  // ========================
-  // PROFESSIONAL FOOTER
-  // ========================
-  
-  const footerY = 35;
+  // FOOTER
+  const footerY = margin / 2;
   
   page.drawLine({ 
-    start: { x: margin, y: footerY + 18 }, 
-    end: { x: width - margin, y: footerY + 18 }, 
-    thickness: 1.5, color: C.silver 
+    start: { x: margin, y: footerY + 20 }, 
+    end: { x: width - margin, y: footerY + 20 }, 
+    thickness: 1, color: C.lightGray 
   });
   
   page.drawText('Avencio Health', { 
     x: margin, y: footerY, 
-    size: 8, font: boldFont, color: C.navy 
+    size: 8, font: boldFont, color: C.blue 
   });
   
-  const centerText = `Document genere le ${dateStr}`;
-  const centerW = font.widthOfTextAtSize(centerText, 7);
+  const centerText = `Document généré le ${dateStr}`;
+  const centerW = font.widthOfTextAtSize(centerText, 8);
   page.drawText(centerText, { 
     x: (width - centerW) / 2, y: footerY, 
-    size: 7, font: font, color: C.lightGray 
+    size: 8, font: font, color: C.gray 
   });
   
   const pageNum = pdfDoc.getPageCount();
@@ -903,7 +666,7 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText, textInput) {
   const pageW = font.widthOfTextAtSize(pageText, 8);
   page.drawText(pageText, { 
     x: width - margin - pageW, y: footerY, 
-    size: 8, font: font, color: C.lightGray 
+    size: 8, font: font, color: C.gray 
   });
 
   const pdfBytes = await pdfDoc.save();
