@@ -179,13 +179,28 @@ RÈGLES DE FORMATAGE DES NOMBRES :
 - Utilise TOUJOURS la virgule comme séparateur décimal (ex: 1,15 et NON 1.15)
 - C'est le format français standard pour les analyses biologiques
 
-RÈGLES DE DÉTECTION DES VALEURS HORS REPÈRES :
-Une valeur est EN DEHORS des repères habituels si :
-- La valeur du patient < limite inférieure de la référence
-- La valeur du patient > limite supérieure de la référence
-- La référence est "< X" et la valeur ≥ X
-- La référence est "> X" et la valeur ≤ X
-- La référence est "Inf à X" et la valeur > X
+INSTRUCTIONS POUR L'EXTRACTION ET LA DÉTECTION DES ANALYSES :
+- Analyse le texte fourni ligne par ligne pour extraire TOUTES les analyses présentes.
+- Chaque analyse typique a : Nom de l'analyse, Valeur du patient (avec unité), Intervalle de référence (ex: 3,5 - 5,0 g/L ou < 5,0 ou > 10,0).
+- Assure-toi de capturer TOUTES les lignes contenant des analyses, même si le format varie légèrement (ex: valeurs alignées, unités séparées).
+- Pour détecter si une valeur est EN DEHORS des repères :
+  - Remplace les points par des virgules pour uniformiser (ex: 1.15 -> 1,15).
+  - Parse les nombres correctement : convertis en float pour comparaison (ex: '1,15' -> 1.15 en interne).
+  - Une valeur est EN DEHORS si :
+    - Valeur < limite inférieure (ex: valeur 3,0 < 3,5 - 5,0).
+    - Valeur > limite supérieure (ex: valeur 6,0 > 3,5 - 5,0).
+    - Référence "< X" et valeur >= X.
+    - Référence "> X" et valeur <= X.
+    - Référence "Inf à X" et valeur > X (Inf = Inférieur).
+    - Ignorer les marques comme * ou H/L si présentes ; base-toi uniquement sur les comparaisons numériques.
+- Si une analyse n'a pas d'intervalle clair, traite-la comme dans les repères (pas en dehors).
+- Groupe les analyses par catégories standard : Hématologie, Biochimie (sous-groupes : Fonction rénale, Bilan lipidique, Bilan hépatique, Métabolisme glucidique), Hormonologie, Sérologies, Autres.
+- Assure-toi que TOUTES les analyses sont listées ; si une est manquée, re-parcours le texte.
+- Problème courant : Si toutes les valeurs apparaissent en dehors (rouge), c'est probablement une erreur de parsing des nombres ou des intervalles. Vérifie doublement les comparaisons en utilisant des exemples internes :
+  Exemple : Valeur "4,2 g/L", Référence "3,5 - 5,0 g/L" -> Dans (4.2 > 3.5 et 4.2 < 5.0).
+  Exemple : Valeur "5,5 g/L", Référence "3,5 - 5,0 g/L" -> En dehors (5.5 > 5.0).
+  Exemple : Valeur "10", Référence "< 5" -> En dehors (10 >= 5).
+  Exemple : Valeur "3", Référence "> 5" -> En dehors (3 <= 5).
 
 CONTENU AUTORISÉ UNIQUEMENT :
 
