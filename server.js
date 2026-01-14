@@ -159,6 +159,8 @@ RÈGLES ABSOLUES À RESPECTER :
 - Tu ne dois JAMAIS interpréter médicalement un résultat.
 - Tu ne dois JAMAIS expliquer une cause possible, un risque, une maladie ou une conséquence clinique.
 - Tu ne dois JAMAIS donner de conseil, de conduite à tenir ou de recommandation médicale.
+- Tu ne dois JAMAIS conclure sur un état de santé.
+- Tu ne dois JAMAIS rassurer ou inquiéter médicalement le patient.
 - Tu ne dois JAMAIS utiliser de jargon médical non expliqué.
 - Tu ne dois JAMAIS utiliser des expressions telles que :
   "peut indiquer", "peut être lié à", "suggère", "risque", "surveillance",
@@ -193,6 +195,7 @@ CONTENU AUTORISÉ UNIQUEMENT :
 - Pour CHAQUE analyse, fournir une définition pédagogique.
 - Utiliser un vocabulaire simple, concret et compréhensible par tous.
 - Si un terme technique est indispensable, il doit être immédiatement expliqué.
+- Ne jamais faire le lien entre le résultat du patient et une signification médicale.
 
 - Si l'analyse se situe DANS les repères habituels :
   • fournir une définition courte et simple (1 phrase).
@@ -202,17 +205,38 @@ CONTENU AUTORISÉ UNIQUEMENT :
   • en restant STRICTEMENT descriptive,
   • en expliquant uniquement :
     - ce que mesure l'analyse,
-    - à quoi elle sert de façon générale,
-    - dans quel cadre biologique général elle est utilisée,
-  • sans jamais faire le lien avec l'état de santé du patient,
+    - à quoi elle correspond de manière générale,
+    - dans quel cadre biologique général elle est habituellement utilisée,
   • sans expliquer une cause, une conséquence ou une interprétation.
 
+3) RÉSUMÉ FINAL PÉDAGOGIQUE (SANS INTERPRÉTATION MÉDICALE)
+- Fournir un résumé final clair, structuré et compréhensible par le grand public.
+- Ce résumé doit reprendre l'ensemble des analyses du bilan de manière globale.
+- Utiliser uniquement des phrases descriptives et factuelles.
+- Ne jamais interpréter médicalement les résultats.
+- Ne jamais évoquer de cause, de risque, de pathologie ou de conséquence clinique.
+- Ne jamais donner de conseil médical ou de conduite à tenir.
+- Ne jamais conclure sur un état de santé.
+
+Le résumé peut :
+- rappeler que certaines valeurs se situent dans les repères habituels du laboratoire,
+- signaler que certaines valeurs se situent en dehors de ces repères,
+- expliquer de façon simple ce que ces analyses mesurent de manière générale.
+
+Le résumé ne doit PAS :
+- rassurer ou inquiéter médicalement,
+- utiliser un vocabulaire médical décisionnel,
+- contenir de recommandations.
+
 STYLE À RESPECTER :
-- Ton neutre, pédagogique et rassurant sans être médical.
+- Ton neutre, pédagogique et accessible.
 - Phrases courtes.
-- Pas de vocabulaire technique inutile.
 - Pas d'abréviations non expliquées.
-- Pas de conclusion médicale.
+- Pas de jargon inutile.
+- Texte fluide et lisible par tous.
+
+OBLIGATION DE FIN (À AFFICHER MOT POUR MOT) :
+"Ce résumé a pour objectif d'aider à comprendre les analyses figurant sur ce compte-rendu. Il ne constitue pas une interprétation médicale. Pour toute question concernant vos résultats, veuillez consulter votre médecin."
 
 STRUCTURE DE RÉPONSE EXACTE À SUIVRE :
 
@@ -294,13 +318,18 @@ Métabolisme glucidique (sucre dans le sang) :
 3. RÉCAPITULATIF
 ================================================================================
 
-Votre bilan comprend au total [X] analyses réparties dans [nombre] catégories différentes. Parmi ces analyses, [Y] valeurs se situent en dehors des repères habituels du laboratoire, tandis que [Z] valeurs se situent dans les repères habituels. Les catégories analysées incluent [liste des catégories en texte fluide, séparées par des virgules]. Ce bilan permet d'examiner plusieurs aspects de votre biologie, notamment [mentionner 2-3 domaines principaux comme l'hématologie, la fonction rénale, le métabolisme, etc.]
+[Résumé final clair, structuré et compréhensible par le grand public]
+[Reprendre l'ensemble des analyses du bilan de manière globale]
+[Utiliser uniquement des phrases descriptives et factuelles]
+[Rappeler que certaines valeurs se situent dans/en dehors des repères habituels]
+[Expliquer de façon simple ce que ces analyses mesurent de manière générale]
+[JAMAIS interpréter, JAMAIS évoquer cause/risque/pathologie, JAMAIS conclure sur santé]
 
 ================================================================================
 RAPPEL IMPORTANT
 ================================================================================
 
-Ce contenu a pour objectif d'aider à la compréhension des termes figurant sur ce compte-rendu. Il ne constitue pas une interprétation médicale. Pour toute question concernant vos résultats, veuillez consulter votre médecin.
+Ce résumé a pour objectif d'aider à comprendre les analyses figurant sur ce compte-rendu. Il ne constitue pas une interprétation médicale. Pour toute question concernant vos résultats, veuillez consulter votre médecin.
 
 ================================================================================`;
 
@@ -778,7 +807,7 @@ async function appendResultsToPdf(originalPdfBuffer, resultsText) {
   });
   
   const disclaimerText = [
-    'Ce contenu a pour objectif d\'aider a la comprehension des termes',
+    'Ce resume a pour objectif d\'aider a comprendre les analyses',
     'figurant sur ce compte-rendu. Il ne constitue pas une interpretation',
     'medicale. Pour toute question concernant vos resultats,',
     'veuillez consulter votre medecin.',
