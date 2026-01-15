@@ -156,7 +156,7 @@ async function getSystemPrompt() {
 }
     // const systemPrompt = ``;//use there so 
     const systemPrompt = await getSystemPrompt(); // 🔥 THIS WAS MISSING
-
+    console.log(systemPrompt)
 
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
